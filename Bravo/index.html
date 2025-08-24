@@ -765,8 +765,28 @@
           } catch (_) {}
           
           window.convai.onBrowserAgentError((error) => {
-            addMessage(`Error: ${error.trim()}`, 'system');
-            hideLoading(true);
+            try {
+              const msg = String(error || '').trim();
+              // Drop known benign/verbose errors
+              const noisy = [
+                /websockets\.exceptions\.ConnectionClosedOK/i,
+                /received\s+1000\s*\(OK\).*sent\s+1000\s*\(OK\)/i,
+                /OSError:\s*\[Errno\s*-?9987\]/i,
+                /Stream not open/i,
+                /Error in voice session:/i,
+                /object str can\'?t be used in 'await' expression/i,
+                /Enter your query \(or 'v' for voice, 'quit' to exit\):/i,
+                /default_audio_interface\.py/i,
+                /conversational_ai[\\\/]conversation\.py/i
+              ];
+              if (noisy.some((re) => re.test(msg))) return;
+              addMessage(`Error: ${msg}`, 'system');
+            } catch (_) {
+              // Fallback: show generic error
+              addMessage('Error', 'system');
+            } finally {
+              hideLoading(true);
+            }
           });
           
           window.convai.onBrowserAgentClosed((code) => {
@@ -791,14 +811,12 @@
             } else {
               try {
                 const msg = (result && result.message) ? String(result.message) : 'Unknown error starting agent';
-                console.error('[Bravo Renderer] startBrowserAgent failed:', msg);
                 showStatus(`Agent failed: ${msg}`, 'error', textStatus);
                 updateAgentStatus(false);
               } catch (_) {}
             }
           }).catch((err) => {
             try {
-              console.error('[Bravo Renderer] startBrowserAgent threw:', err && err.message ? err.message : err);
               showStatus('Agent failed to start (exception). Check logs.', 'error', textStatus);
               updateAgentStatus(false);
             } catch (_) {}

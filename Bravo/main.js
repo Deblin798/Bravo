@@ -23,20 +23,39 @@ function loadEnvFile(filePath) {
 }
 loadEnvFile(path.join(__dirname, '.env'));
 
-// Debug logging helpers (enable with BRAVO_DEBUG=1)
-const DEBUG = process.env.BRAVO_DEBUG === '1';
-function logDebug(...args) { try { if (DEBUG) console.log('[Bravo]', ...args); } catch (_) {} }
-function logInfo(...args) { try { console.log('[Bravo]', ...args); } catch (_) {} }
-function logWarn(...args) { try { console.warn('[Bravo]', ...args); } catch (_) {} }
-function logError(...args) { try { console.error('[Bravo]', ...args); } catch (_) {} }
+// No-op logging to preserve call sites without emitting logs
+const DEBUG = false;
+function logDebug() {}
+function logInfo() {}
+function logWarn() {}
+function logError() {}
 
-logDebug('Startup context', {
-  platform: process.platform,
-  arch: process.arch,
-  electron: process.versions.electron,
-  chrome: process.versions.chrome,
-  node: process.versions.node
-});
+// Heuristic filter for noisy/benign agent errors we don't want in the UI
+function isNoisyAgentError(line) {
+  try {
+    const text = String(line || '').trim();
+    if (!text) return true;
+    const patterns = [
+      /websockets\.exceptions\.ConnectionClosedOK/i,
+      /received\s+1000\s*\(OK\).*sent\s+1000\s*\(OK\)/i,
+      /Traceback \(most recent call last\)/i,
+      /Exception in thread/i,
+      /During handling of the above exception/i,
+      /OSError:\s*\[Errno\s*-?9987\]/i,
+      /Stream not open/i,
+      /Error in voice session:/i,
+      /object str can\'?t be used in 'await' expression/i,
+      /Enter your query \(or 'v' for voice, 'quit' to exit\):/i,
+      /default_audio_interface\.py/i,
+      /conversational_ai[\\/]conversation\.py/i,
+      /ElevenLabs agent process exited/i
+    ];
+    for (const re of patterns) { if (re.test(text)) return true; }
+    return false;
+  } catch (_) {
+    return false;
+  }
+}
 
 // GPU toggles per platform (reduce noisy logs and ensure stable WebGL/WebAudio)
 if (process.platform === 'darwin') {
@@ -230,7 +249,7 @@ function createMainWindow() {
   // Nudge agent back to text prompt in case voice handler swallowed SIGINT
   try { setTimeout(() => { try { if (browserAgentProcess && browserAgentProcess.stdin) browserAgentProcess.stdin.write('\n'); } catch (_) {} }, 200); } catch (_) {}
 
-  logDebug('Main window created and positioned');
+  
 
   return mainWindow;
 }
@@ -243,21 +262,21 @@ async function startBrowserAgentWarm() {
   try {
     const projectRoot = path.dirname(__dirname);
     const browserAgentPath = path.join(projectRoot, 'Voice-Agent');
-    console.log('[Warmup] Resolved ElevenLabs Voice Agent path:', browserAgentPath);
+    
     if (!fs.existsSync(browserAgentPath)) {
-      console.warn('[Warmup] Backend path not found, skipping prewarm:', browserAgentPath);
+      
       return;
     }
 
     const pythonCmd = resolvePython3();
     if (!pythonCmd) {
-      console.warn('[Warmup] No working python3 executable found, skipping prewarm.');
+      
       return;
     }
 
     const execCmd = pythonCmd === '/usr/bin/env' ? '/usr/bin/env' : pythonCmd;
     const execArgs = pythonCmd === '/usr/bin/env' ? ['python3', '-u', 'main.py'] : ['-u', 'main.py'];
-    console.log('[Warmup] Launching ElevenLabs Voice Agent with:', execCmd, execArgs.join(' '));
+    
 
     browserAgentProcess = spawn(execCmd, execArgs, {
       cwd: browserAgentPath,
@@ -269,7 +288,7 @@ async function startBrowserAgentWarm() {
 
     browserAgentProcess.stdout.on('data', (data) => {
       const output = data.toString();
-      console.log('ElevenLabs Agent Output:', output);
+      
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('browser-agent-output', output);
       }
@@ -283,7 +302,7 @@ async function startBrowserAgentWarm() {
         // Drop noisy INFO/DEBUG/WARNING/httpx logs; forward only real errors
         if (/\b(INFO|DEBUG|WARNING)\b/i.test(line)) continue;
         if (/httpx:HTTP Request:/i.test(line)) continue;
-        console.error('ElevenLabs Agent Error:', line);
+        if (isNoisyAgentError(line)) continue;
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('browser-agent-error', line);
         }
@@ -291,7 +310,7 @@ async function startBrowserAgentWarm() {
     });
 
     browserAgentProcess.on('close', (code) => {
-      console.log(`[Warmup] ElevenLabs agent process exited with code ${code}`);
+      
       browserAgentProcess = null;
       voiceModeActive = false;
       try { if (autoVoiceTimer) { clearTimeout(autoVoiceTimer); autoVoiceTimer = null; } } catch (_) {}
@@ -301,14 +320,14 @@ async function startBrowserAgentWarm() {
     });
 
     browserAgentProcess.on('error', (error) => {
-      console.error('[Warmup] ElevenLabs agent spawn error:', error);
+      
       browserAgentProcess = null;
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('browser-agent-error', `Spawn error: ${error.message}`);
       }
     });
   } catch (error) {
-    console.warn('[Warmup] Failed to start browser agent:', error);
+    
   }
 }
 
@@ -356,7 +375,7 @@ function createOrbWindow() {
 
   // Ensure permissions (mic) prompts are allowed
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    logDebug('Permission request:', permission);
+    
     if (permission === 'media' || permission === 'audioCapture' || permission === 'speaker') {
       return callback(true);
     }
@@ -381,7 +400,7 @@ function createOrbWindow() {
 }
 
 app.whenReady().then(() => {
-  logDebug('app.whenReady');
+  
   createOrbWindow();
   // Removed backend warmup to avoid unintended voice activation while orb is visible
 
@@ -412,23 +431,23 @@ ipcMain.handle('open-main', () => {
 // IPC: Start browser agent
 ipcMain.handle('start-browser-agent', async () => {
   if (browserAgentProcess) {
-    logDebug('start-browser-agent: agent already running');
+    
     return { success: true, message: 'Browser agent already running' };
   }
   
   try {
     const projectRoot = path.dirname(__dirname);
     const browserAgentPath = path.join(projectRoot, 'Voice-Agent');
-    logInfo('Resolved ElevenLabs Voice Agent path:', browserAgentPath);
+    
     if (!fs.existsSync(browserAgentPath)) {
-      logWarn('start-browser-agent: backend path not found');
+      
       return { success: false, message: `Backend path not found: ${browserAgentPath}` };
     }
 
     // Resolve a working python3 binary
     const pythonCmd = resolvePython3();
     if (!pythonCmd) {
-      logWarn('start-browser-agent: no working python3 executable found');
+      
       return { success: false, message: 'No working python3 executable found on this system.' };
     }
 
@@ -437,7 +456,7 @@ ipcMain.handle('start-browser-agent', async () => {
     const execArgs = (process.platform === 'win32' && pythonCmd === 'py')
       ? ['-3', '-u', 'main.py']
       : (pythonCmd === '/usr/bin/env' ? ['python3', '-u', 'main.py'] : ['-u', 'main.py']);
-    logInfo('Launching ElevenLabs Voice Agent with:', execCmd, execArgs.join(' '), 'cwd:', browserAgentPath);
+    
 
     browserAgentProcess = spawn(execCmd, execArgs, {
       cwd: browserAgentPath,
@@ -448,7 +467,7 @@ ipcMain.handle('start-browser-agent', async () => {
     // Set up output handlers for the agent
     browserAgentProcess.stdout.on('data', (data) => {
       const output = data.toString();
-      logDebug('Agent stdout:', output.trim());
+      
       // Send output to renderer process
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('browser-agent-output', output);
@@ -463,7 +482,7 @@ ipcMain.handle('start-browser-agent', async () => {
         // Drop noisy INFO/DEBUG/WARNING/httpx logs; forward only real errors
         if (/\b(INFO|DEBUG|WARNING)\b/i.test(line)) continue;
         if (/httpx:HTTP Request:/i.test(line)) continue;
-        logError('Agent stderr:', line);
+        
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('browser-agent-error', line);
         }
@@ -471,7 +490,6 @@ ipcMain.handle('start-browser-agent', async () => {
     });
     
     browserAgentProcess.on('close', (code, signal) => {
-      logWarn('Agent process exited', { code, signal });
       browserAgentProcess = null;
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('browser-agent-closed', code);
@@ -479,7 +497,6 @@ ipcMain.handle('start-browser-agent', async () => {
     });
     
     browserAgentProcess.on('error', (error) => {
-      logError('Agent spawn error:', error && error.message ? error.message : error);
       browserAgentProcess = null;
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('browser-agent-error', `Spawn error: ${error.message}`);
@@ -488,7 +505,7 @@ ipcMain.handle('start-browser-agent', async () => {
     
     return { success: true, message: 'Browser agent started' };
   } catch (error) {
-    logError('start-browser-agent: unexpected failure:', error && error.message ? error.message : error);
+    
     return { success: false, message: `Failed to start browser agent: ${error.message}` };
   }
 });
@@ -496,7 +513,6 @@ ipcMain.handle('start-browser-agent', async () => {
 // IPC: Send message to browser agent
 ipcMain.handle('send-to-browser-agent', (event, message) => {
   if (!browserAgentProcess) {
-    logWarn('send-to-browser-agent: agent not running');
     return { success: false, message: 'Browser agent not running' };
   }
   
@@ -504,7 +520,6 @@ ipcMain.handle('send-to-browser-agent', (event, message) => {
     browserAgentProcess.stdin.write(message + '\n');
     return { success: true };
   } catch (error) {
-    logError('send-to-browser-agent: write failed', error && error.message ? error.message : error);
     return { success: false, message: `Failed to send message: ${error.message}` };
   }
 });
@@ -512,15 +527,12 @@ ipcMain.handle('send-to-browser-agent', (event, message) => {
 // IPC: Start voice mode in ElevenLabs agent (simulate typing 'v' + Enter)
 ipcMain.handle('start-voice-mode', () => {
   if (!browserAgentProcess) {
-    logWarn('start-voice-mode: agent not running');
     return { success: false, message: 'Agent not running' };
   }
   try {
     browserAgentProcess.stdin.write('v\n');
-    logDebug('start-voice-mode: wrote v\\n to agent');
     return { success: true };
   } catch (error) {
-    logError('start-voice-mode: failed', error && error.message ? error.message : error);
     return { success: false, message: `Failed to start voice mode: ${error.message}` };
   }
 });
@@ -528,15 +540,12 @@ ipcMain.handle('start-voice-mode', () => {
 // IPC: Stop voice mode by sending SIGINT (agent handles it to end session)
 ipcMain.handle('stop-voice-mode', () => {
   if (!browserAgentProcess) {
-    logWarn('stop-voice-mode: agent not running');
     return { success: false, message: 'Agent not running' };
   }
   try {
     browserAgentProcess.kill('SIGINT');
-    logDebug('stop-voice-mode: sent SIGINT');
     return { success: true };
   } catch (error) {
-    logError('stop-voice-mode: failed', error && error.message ? error.message : error);
     return { success: false, message: `Failed to stop voice mode: ${error.message}` };
   }
 });
@@ -549,17 +558,14 @@ ipcMain.handle('stop-browser-agent', () => {
       browserAgentProcess = null;
       // Try graceful stop first
       proc.kill('SIGTERM');
-      logDebug('stop-browser-agent: sent SIGTERM');
       // Escalate after timeout if needed
       setTimeout(() => {
         if (!proc.killed) {
           try { proc.kill('SIGKILL'); } catch (_) {}
-          logWarn('stop-browser-agent: escalated to SIGKILL');
         }
       }, 1500);
       return { success: true, message: 'Browser agent stopped' };
     } catch (e) {
-      logError('stop-browser-agent: error stopping agent', e && e.message ? e.message : e);
       return { success: false, message: `Error stopping agent: ${e.message}` };
     }
   }
