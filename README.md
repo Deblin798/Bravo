@@ -1,8 +1,8 @@
 # Bravo
 
-<p align="center">
-  <img src="./assets/Built_at_Co-Creating_with_GPT-5_Hackathon.png" alt="Bravo Banner" width="800"/>
-</p>
+[![Example Demo](Images/thumbnail.png)](https://drive.google.com/file/d/1W_bGwIey7s2-50hPSet3GeAU_Q3SGfUr/view?usp=drive_link)
+
+
 
 End-to-end setup to run:
 1) Coral Server (Kotlin, SSE MCP)
@@ -152,5 +152,6 @@ Coral-Browser-Agent/        # Python MCP client (web browser agent)
 Bravo/                      # Electron app (UI)
 Voice-Agent/                # ElevenLabs voice agent (optional)
 ```
-[![Example Demo](Images/thumbnail.png)](https://drive.google.com/file/d/1W_bGwIey7s2-50hPSet3GeAU_Q3SGfUr/view?usp=drive_link)
-
+<p align="center">
+  <img src="./assets/Built_at_Co-Creating_with_GPT-5_Hackathon.png" alt="Bravo Banner" width="800"/>
+</p>
