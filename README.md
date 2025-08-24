@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./assets/Built_at_Co-Creating_with_GPT-5_Hackathon.png" alt="Bravo Banner" width="800"/>
+</p>
+
 # BravoAI Monorepo
 
 End-to-end setup to run:
