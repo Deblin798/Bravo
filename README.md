@@ -77,6 +77,33 @@ Notes:
 - Logs are written to `Coral-Browser-Agent/logs/`.
 - Agent registers to Coral via SSE with `agentId=$CORAL_AGENT_ID` and loops on `wait-for-mentions`.
 
+## ElevenLabs Python SDK install (for `Voice-Agent`)
+
+Install the ElevenLabs Conversational AI SDK:
+
+```bash
+pip install elevenlabs
+
+# For default audio input/output support (PyAudio extra):
+pip install "elevenlabs[pyaudio]"
+
+# or with Poetry
+poetry add elevenlabs "elevenlabs[pyaudio]"
+```
+
+Note: The `pyaudio` extra may require system dependencies. See the official docs: [ElevenLabs Python SDK Installation](https://elevenlabs.io/docs/conversational-ai/libraries/python#installation).
+
+System deps for `pyaudio`:
+
+```bash
+# Linux (Debian/Ubuntu)
+sudo apt-get update
+sudo apt-get install libportaudio2 libportaudiocpp0 portaudio19-dev libasound-dev libsndfile1-dev -y
+
+# macOS (Homebrew)
+brew install portaudio
+```
+
 ## 3) Run Bravo (Electron app)
 
 From `Bravo`:
@@ -119,5 +146,6 @@ cd Bravo && npm install && npm run start
 coral-server/               # Kotlin SSE MCP server
 Coral-Browser-Agent/        # Python MCP client (web browser agent)
 Bravo/                      # Electron app (UI)
+Voice-Agent/                # ElevenLabs voice agent (optional)
 ```
 
