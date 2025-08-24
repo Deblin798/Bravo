@@ -788,8 +788,21 @@
               showStatus('Agent ready', 'success', textStatus);
               updateAgentStatus(true);
               // Renderer no longer sends prewarm; main process handles it.
+            } else {
+              try {
+                const msg = (result && result.message) ? String(result.message) : 'Unknown error starting agent';
+                console.error('[Bravo Renderer] startBrowserAgent failed:', msg);
+                showStatus(`Agent failed: ${msg}`, 'error', textStatus);
+                updateAgentStatus(false);
+              } catch (_) {}
             }
-          }).catch(() => {/* ignore */});
+          }).catch((err) => {
+            try {
+              console.error('[Bravo Renderer] startBrowserAgent threw:', err && err.message ? err.message : err);
+              showStatus('Agent failed to start (exception). Check logs.', 'error', textStatus);
+              updateAgentStatus(false);
+            } catch (_) {}
+          });
         }
       });
       

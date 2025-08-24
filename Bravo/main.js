@@ -23,6 +23,21 @@ function loadEnvFile(filePath) {
 }
 loadEnvFile(path.join(__dirname, '.env'));
 
+// Debug logging helpers (enable with BRAVO_DEBUG=1)
+const DEBUG = process.env.BRAVO_DEBUG === '1';
+function logDebug(...args) { try { if (DEBUG) console.log('[Bravo]', ...args); } catch (_) {} }
+function logInfo(...args) { try { console.log('[Bravo]', ...args); } catch (_) {} }
+function logWarn(...args) { try { console.warn('[Bravo]', ...args); } catch (_) {} }
+function logError(...args) { try { console.error('[Bravo]', ...args); } catch (_) {} }
+
+logDebug('Startup context', {
+  platform: process.platform,
+  arch: process.arch,
+  electron: process.versions.electron,
+  chrome: process.versions.chrome,
+  node: process.versions.node
+});
+
 // GPU toggles per platform (reduce noisy logs and ensure stable WebGL/WebAudio)
 if (process.platform === 'darwin') {
   app.commandLine.appendSwitch('use-angle', 'metal');
@@ -58,6 +73,79 @@ function stopVoiceModeInternal() {
 
 // Resolve a working python3 executable by probing common absolute paths and validating with --version
 function resolvePython3() {
+  const attempts = [];
+  // Env override: allow specifying an explicit interpreter (e.g., venv python)
+  const override = process.env.BRAVO_PYTHON && String(process.env.BRAVO_PYTHON).trim();
+  if (override) {
+    try {
+      if (fs.existsSync(override)) {
+        attempts.push(`${override} --version`);
+        const resOv = spawnSync(override, ['--version'], { stdio: 'ignore' });
+        if (resOv && resOv.status === 0) {
+          logInfo('resolvePython3: using BRAVO_PYTHON override', override);
+          return override;
+        }
+      } else {
+        attempts.push(`override not found: ${override}`);
+      }
+    } catch (e) {
+      attempts.push('override failed: ' + (e && e.message));
+    }
+  }
+  // Windows: prefer the launcher `py -3`, then fall back to PATH `python`/`python3`
+  if (process.platform === 'win32') {
+    try {
+      attempts.push('py -3 --version');
+      const resPy = spawnSync('py', ['-3', '--version'], { stdio: 'ignore' });
+      if (resPy && resPy.status === 0) {
+        logDebug('resolvePython3: using Windows launcher `py -3`');
+        return 'py';
+      }
+    } catch (e) { attempts.push('py launcher failed: ' + (e && e.message)); }
+    try {
+      attempts.push('python --version');
+      const resPython = spawnSync('python', ['--version'], { stdio: 'ignore' });
+      if (resPython && resPython.status === 0) {
+        logDebug('resolvePython3: using `python` from PATH');
+        return 'python';
+      }
+    } catch (e) { attempts.push('python failed: ' + (e && e.message)); }
+    try {
+      attempts.push('python3 --version');
+      const resPython3 = spawnSync('python3', ['--version'], { stdio: 'ignore' });
+      if (resPython3 && resPython3.status === 0) {
+        logDebug('resolvePython3: using `python3` from PATH');
+        return 'python3';
+      }
+    } catch (e) { attempts.push('python3 failed: ' + (e && e.message)); }
+    // Try common absolute install paths (best-effort)
+    const winCandidates = [
+      'C:\\Python313\\python.exe',
+      'C:\\Python312\\python.exe',
+      'C:\\Python311\\python.exe',
+      'C:\\Program Files\\Python313\\python.exe',
+      'C:\\Program Files\\Python312\\python.exe',
+      'C:\\Program Files\\Python311\\python.exe',
+      'C:\\Program Files (x86)\\Python313\\python.exe',
+      'C:\\Program Files (x86)\\Python312\\python.exe',
+      'C:\\Program Files (x86)\\Python311\\python.exe'
+    ];
+    for (const abs of winCandidates) {
+      try {
+        if (!fs.existsSync(abs)) continue;
+        attempts.push(`${abs} --version`);
+        const resAbs = spawnSync(abs, ['--version'], { stdio: 'ignore' });
+        if (resAbs && resAbs.status === 0) {
+          logDebug('resolvePython3: using absolute Windows path', abs);
+          return abs;
+        }
+      } catch (e) { attempts.push(`${abs} failed: ` + (e && e.message)); }
+    }
+    logWarn('resolvePython3: no working Python found on Windows. Attempts:', attempts);
+    return null;
+  }
+
+  // macOS/Linux
   const candidates = [
     // Framework bundle executables (most reliable on macOS when installed from python.org)
     '/Library/Frameworks/Python.framework/Versions/Current/Resources/Python.app/Contents/MacOS/Python',
@@ -76,14 +164,15 @@ function resolvePython3() {
     try {
       if (!fs.existsSync(cmd) && cmd !== '/usr/bin/env') continue;
       const args = cmd === '/usr/bin/env' ? ['python3', '--version'] : ['--version'];
+      attempts.push(`${cmd} ${args.join(' ')}`);
       const res = spawnSync(cmd, args, { stdio: 'ignore' });
       if (res && res.status === 0) {
+        logDebug('resolvePython3: using', cmd);
         return cmd;
       }
-    } catch (e) {
-      // try next
-    }
+    } catch (e) { attempts.push(`${cmd} failed: ` + (e && e.message)); }
   }
+  logWarn('resolvePython3: no working Python found on macOS/Linux. Attempts:', attempts);
   return null;
 }
 
@@ -140,6 +229,8 @@ function createMainWindow() {
   stopVoiceModeInternal();
   // Nudge agent back to text prompt in case voice handler swallowed SIGINT
   try { setTimeout(() => { try { if (browserAgentProcess && browserAgentProcess.stdin) browserAgentProcess.stdin.write('\n'); } catch (_) {} }, 200); } catch (_) {}
+
+  logDebug('Main window created and positioned');
 
   return mainWindow;
 }
@@ -265,6 +356,7 @@ function createOrbWindow() {
 
   // Ensure permissions (mic) prompts are allowed
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    logDebug('Permission request:', permission);
     if (permission === 'media' || permission === 'audioCapture' || permission === 'speaker') {
       return callback(true);
     }
@@ -289,6 +381,7 @@ function createOrbWindow() {
 }
 
 app.whenReady().then(() => {
+  logDebug('app.whenReady');
   createOrbWindow();
   // Removed backend warmup to avoid unintended voice activation while orb is visible
 
@@ -319,26 +412,32 @@ ipcMain.handle('open-main', () => {
 // IPC: Start browser agent
 ipcMain.handle('start-browser-agent', async () => {
   if (browserAgentProcess) {
+    logDebug('start-browser-agent: agent already running');
     return { success: true, message: 'Browser agent already running' };
   }
   
   try {
     const projectRoot = path.dirname(__dirname);
     const browserAgentPath = path.join(projectRoot, 'Voice-Agent');
-    console.log('Resolved ElevenLabs Voice Agent path:', browserAgentPath);
+    logInfo('Resolved ElevenLabs Voice Agent path:', browserAgentPath);
     if (!fs.existsSync(browserAgentPath)) {
+      logWarn('start-browser-agent: backend path not found');
       return { success: false, message: `Backend path not found: ${browserAgentPath}` };
     }
 
     // Resolve a working python3 binary
     const pythonCmd = resolvePython3();
     if (!pythonCmd) {
+      logWarn('start-browser-agent: no working python3 executable found');
       return { success: false, message: 'No working python3 executable found on this system.' };
     }
 
     const execCmd = pythonCmd === '/usr/bin/env' ? '/usr/bin/env' : pythonCmd;
-    const execArgs = pythonCmd === '/usr/bin/env' ? ['python3', '-u', 'main.py'] : ['-u', 'main.py'];
-    console.log('Launching ElevenLabs Voice Agent with:', execCmd, execArgs.join(' '));
+    // On Windows, `py` launcher needs `-3` and script; others use -u main.py
+    const execArgs = (process.platform === 'win32' && pythonCmd === 'py')
+      ? ['-3', '-u', 'main.py']
+      : (pythonCmd === '/usr/bin/env' ? ['python3', '-u', 'main.py'] : ['-u', 'main.py']);
+    logInfo('Launching ElevenLabs Voice Agent with:', execCmd, execArgs.join(' '), 'cwd:', browserAgentPath);
 
     browserAgentProcess = spawn(execCmd, execArgs, {
       cwd: browserAgentPath,
@@ -349,7 +448,7 @@ ipcMain.handle('start-browser-agent', async () => {
     // Set up output handlers for the agent
     browserAgentProcess.stdout.on('data', (data) => {
       const output = data.toString();
-      console.log('ElevenLabs Agent Output:', output);
+      logDebug('Agent stdout:', output.trim());
       // Send output to renderer process
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('browser-agent-output', output);
@@ -364,15 +463,15 @@ ipcMain.handle('start-browser-agent', async () => {
         // Drop noisy INFO/DEBUG/WARNING/httpx logs; forward only real errors
         if (/\b(INFO|DEBUG|WARNING)\b/i.test(line)) continue;
         if (/httpx:HTTP Request:/i.test(line)) continue;
-        console.error('ElevenLabs Agent Error:', line);
+        logError('Agent stderr:', line);
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('browser-agent-error', line);
         }
       }
     });
     
-    browserAgentProcess.on('close', (code) => {
-      console.log(`ElevenLabs agent process exited with code ${code}`);
+    browserAgentProcess.on('close', (code, signal) => {
+      logWarn('Agent process exited', { code, signal });
       browserAgentProcess = null;
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('browser-agent-closed', code);
@@ -380,7 +479,7 @@ ipcMain.handle('start-browser-agent', async () => {
     });
     
     browserAgentProcess.on('error', (error) => {
-      console.error('ElevenLabs agent spawn error:', error);
+      logError('Agent spawn error:', error && error.message ? error.message : error);
       browserAgentProcess = null;
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('browser-agent-error', `Spawn error: ${error.message}`);
@@ -389,6 +488,7 @@ ipcMain.handle('start-browser-agent', async () => {
     
     return { success: true, message: 'Browser agent started' };
   } catch (error) {
+    logError('start-browser-agent: unexpected failure:', error && error.message ? error.message : error);
     return { success: false, message: `Failed to start browser agent: ${error.message}` };
   }
 });
@@ -396,6 +496,7 @@ ipcMain.handle('start-browser-agent', async () => {
 // IPC: Send message to browser agent
 ipcMain.handle('send-to-browser-agent', (event, message) => {
   if (!browserAgentProcess) {
+    logWarn('send-to-browser-agent: agent not running');
     return { success: false, message: 'Browser agent not running' };
   }
   
@@ -403,6 +504,7 @@ ipcMain.handle('send-to-browser-agent', (event, message) => {
     browserAgentProcess.stdin.write(message + '\n');
     return { success: true };
   } catch (error) {
+    logError('send-to-browser-agent: write failed', error && error.message ? error.message : error);
     return { success: false, message: `Failed to send message: ${error.message}` };
   }
 });
@@ -410,12 +512,15 @@ ipcMain.handle('send-to-browser-agent', (event, message) => {
 // IPC: Start voice mode in ElevenLabs agent (simulate typing 'v' + Enter)
 ipcMain.handle('start-voice-mode', () => {
   if (!browserAgentProcess) {
+    logWarn('start-voice-mode: agent not running');
     return { success: false, message: 'Agent not running' };
   }
   try {
     browserAgentProcess.stdin.write('v\n');
+    logDebug('start-voice-mode: wrote v\\n to agent');
     return { success: true };
   } catch (error) {
+    logError('start-voice-mode: failed', error && error.message ? error.message : error);
     return { success: false, message: `Failed to start voice mode: ${error.message}` };
   }
 });
@@ -423,12 +528,15 @@ ipcMain.handle('start-voice-mode', () => {
 // IPC: Stop voice mode by sending SIGINT (agent handles it to end session)
 ipcMain.handle('stop-voice-mode', () => {
   if (!browserAgentProcess) {
+    logWarn('stop-voice-mode: agent not running');
     return { success: false, message: 'Agent not running' };
   }
   try {
     browserAgentProcess.kill('SIGINT');
+    logDebug('stop-voice-mode: sent SIGINT');
     return { success: true };
   } catch (error) {
+    logError('stop-voice-mode: failed', error && error.message ? error.message : error);
     return { success: false, message: `Failed to stop voice mode: ${error.message}` };
   }
 });
@@ -441,14 +549,17 @@ ipcMain.handle('stop-browser-agent', () => {
       browserAgentProcess = null;
       // Try graceful stop first
       proc.kill('SIGTERM');
+      logDebug('stop-browser-agent: sent SIGTERM');
       // Escalate after timeout if needed
       setTimeout(() => {
         if (!proc.killed) {
           try { proc.kill('SIGKILL'); } catch (_) {}
+          logWarn('stop-browser-agent: escalated to SIGKILL');
         }
       }, 1500);
       return { success: true, message: 'Browser agent stopped' };
     } catch (e) {
+      logError('stop-browser-agent: error stopping agent', e && e.message ? e.message : e);
       return { success: false, message: `Error stopping agent: ${e.message}` };
     }
   }
