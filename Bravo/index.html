@@ -20,7 +20,9 @@
         background-attachment: fixed, fixed;
         background-size: 140% 140%, 100% 100%;
         color: #e5e7eb;
+        overflow-x: hidden; /* prevent horizontal scrollbar on Windows */
       }
+      *, *::before, *::after { box-sizing: border-box; }
       :root { --header-h: 0px; }
       
       .container {
