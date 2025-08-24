@@ -29,6 +29,12 @@ python3 -V      # 3.13+
 uv --version    # optional but recommended
 ```
 
+## Workflow
+
+![Workflow](assets/bravo-workflow.png)
+
+assets/bravo-workflow.png
+
 ## 0) Env files
 Copy the samples and fill in keys.
 
