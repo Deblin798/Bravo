@@ -1,5 +1,7 @@
 # Bravo
 
+Bravo is an agentic autonomous browser that listens, understands, and acts so you can browse hands free.
+
 Click below to check the product video!
 
 [![Example Demo](Images/thumbnail.png)](https://drive.google.com/file/d/1W_bGwIey7s2-50hPSet3GeAU_Q3SGfUr/view?usp=drive_link)
