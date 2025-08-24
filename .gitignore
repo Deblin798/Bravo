@@ -1,0 +1,29 @@
+# Environment files (ignore real secrets)
+.env
+.env.*
+*.env
+*.env.*
+**/.env
+**/.env.*
+**/*.env
+**/*.env.*
+
+# Allow env templates/samples
+!**/.env.example
+!**/.env.sample
+!**/.env_example
+!**/.env_sample
+!Bravo/.env_sample
+
+# Common noise
+node_modules/
+.DS_Store
+.idea/
+.vscode/
+dist/
+build/
+.venv/
+venv/
+__pycache__/
+*.log
+

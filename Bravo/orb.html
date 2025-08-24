@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bravo Orb</title>
+    <style>
+      html, body { height: 100%; margin: 0; background: transparent; }
+      .orb-wrap {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        align-items: start;
+        justify-items: end;
+        -webkit-app-region: drag;
+        /* allow visual effects to extend beyond the orb */
+        /* allow inner effects to overflow */
+      }
+      .orb {
+        width: 84px;
+        height: 84px;
+        border-radius: 50%;
+        background: radial-gradient(120% 120% at 50% 35%, #0a0a0a 0%, #0b0f0e 55%, #000000 100%);
+        box-shadow: 0 12px 28px rgba(0,0,0,.42), inset 0 6px 14px rgba(255,255,255,.06);
+        position: relative;
+        -webkit-app-region: no-drag;
+        cursor: pointer;
+        transform: scale(1);
+        transition: transform 80ms linear;
+        overflow: hidden;
+        --level: 0; /* mic amplitude 0..1 passed from JS */
+      }
+      .orb::before {
+        content: "";
+        position: absolute;
+        inset: -10%;
+        border-radius: 50%;
+        background: conic-gradient(from 210deg,
+          rgba(255,255,255,0) 0deg,
+          rgba(255,255,255,0.35) 35deg,
+          rgba(255,255,255,0) 70deg,
+          rgba(255,255,255,0.25) 200deg,
+          rgba(255,255,255,0) 260deg
+        );
+        filter: blur(10px);
+        animation: rotateSheen 14s linear infinite reverse;
+        mix-blend-mode: screen;
+        pointer-events: none;
+      }
+      .orb::after {
+        content: "";
+        position: absolute;
+        inset: -12%;
+        border-radius: 50%;
+        background: conic-gradient(from 30deg,
+          rgba(106,70,255,0) 0deg,
+          rgba(106,70,255,0.5) 50deg,
+          rgba(106,70,255,0) 120deg,
+          rgba(106,70,255,0.4) 200deg,
+          rgba(106,70,255,0) 300deg
+        );
+        filter: blur(14px);
+        animation: rotateSheen 10s linear infinite;
+        mix-blend-mode: screen;
+        pointer-events: none;
+      }
+      .pulse {
+        position: absolute;
+        inset: -4px;
+        border-radius: 50%;
+        background: radial-gradient(100% 100% at 50% 50%, rgba(106,70,255,.18), rgba(255,255,255,0.18), rgba(106,70,255,0));
+        filter: blur(1px);
+        animation: breath 2.4s ease-in-out infinite;
+        pointer-events: none;
+      }
+      @keyframes breath {
+        0%, 100% { transform: scale(1); opacity: .6; }
+        50% { transform: scale(1.06); opacity: .9; }
+      }
+      @keyframes rotateSheen {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @keyframes twinkle {
+        0%, 100% { opacity: .55; transform: scale(1); }
+        50% { opacity: .9; transform: scale(1.08); }
+      }
+
+      /* ====== Waves: intersecting animated ellipses (Siri-like) ====== */
+      .waves { position: absolute; inset: -12%; pointer-events: none; filter: saturate(120%); }
+      .wave { position: absolute; inset: 0; mix-blend-mode: screen; opacity: .55; }
+      .wave.a {
+        background: radial-gradient(ellipse 80% 45% at 35% 60%, rgba(106,70,255,.30), rgba(106,70,255,0) 60%);
+        filter: blur(10px);
+        animation: waveA 7.5s ease-in-out infinite;
+      }
+      .wave.b {
+        background: radial-gradient(ellipse 70% 40% at 65% 40%, rgba(255,255,255,.30), rgba(255,255,255,0) 60%);
+        filter: blur(12px);
+        animation: waveB 8.5s ease-in-out infinite reverse;
+      }
+      .wave.c {
+        background: radial-gradient(ellipse 90% 55% at 50% 50%, rgba(106,70,255,.22), rgba(106,70,255,0) 65%);
+        filter: blur(14px);
+        animation: waveC 11s ease-in-out infinite;
+        opacity: .42;
+      }
+      @keyframes waveA {
+        0%   { transform: translate(-6%, 2%) rotate(0deg)   scale(calc(1 + var(--level)*.08)); }
+        50%  { transform: translate(6%, -4%) rotate(18deg)  scale(calc(1 + var(--level)*.16)); }
+        100% { transform: translate(-6%, 2%) rotate(0deg)   scale(calc(1 + var(--level)*.08)); }
+      }
+      @keyframes waveB {
+        0%   { transform: translate(6%, -6%) rotate(-8deg)  scale(calc(1 + var(--level)*.08)); }
+        50%  { transform: translate(-8%, 4%) rotate(10deg)  scale(calc(1 + var(--level)*.14)); }
+        100% { transform: translate(6%, -6%) rotate(-8deg)  scale(calc(1 + var(--level)*.08)); }
+      }
+      @keyframes waveC {
+        0%   { transform: translate(0%, 0%) rotate(0deg)    scale(calc(1 + var(--level)*.06)); }
+        50%  { transform: translate(2%, 4%) rotate(20deg)   scale(calc(1 + var(--level)*.12)); }
+        100% { transform: translate(0%, 0%) rotate(0deg)    scale(calc(1 + var(--level)*.06)); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="orb-wrap">
+      <div class="orb" id="orb">
+        <div class="waves">
+          <div class="wave a"></div>
+          <div class="wave b"></div>
+          <div class="wave c"></div>
+        </div>
+        <div class="pulse"></div>
+      </div>
+    </div>
+    <script>
+      const orb = document.getElementById('orb');
+
+      orb.addEventListener('click', async () => {
+        if (window.convai) {
+          await window.convai.openMain();
+        }
+      });
+    </script>
+  </body>
+  </html>
+
+

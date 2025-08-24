@@ -1,0 +1,28 @@
+/dist
+/node_modules
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Env
+.env
+.env.*
+
+# Editor/OS
+.idea/
+.vscode/
+Thumbs.db
+*.swp
+
+# Electron build cache/output
+/.cache
+/out
+/build/*.icns
+/build/*.ico
+
+

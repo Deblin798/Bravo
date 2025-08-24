@@ -1,0 +1,56 @@
+{
+  "name": "bravo-mac-app",
+  "version": "1.0.0",
+  "description": "macOS desktop app wrapping ElevenLabs Bravo widget with voice input",
+  "main": "main.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "ws": "^8.14.0"
+  },
+  "devDependencies": {
+    "electron": "^32.1.2",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.example.bravo",
+    "productName": "Bravo",
+    "files": [
+      "main.js",
+      "index.html",
+      "orb.html",
+      "preload.js",
+      "node_modules/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": ["dmg", "zip"],
+      "hardenedRuntime": true,
+      "entitlementsInherit": "inherit",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Bravo needs microphone access so you can talk to the ElevenLabs agent.",
+        "NSSpeechRecognitionUsageDescription": "Bravo needs speech recognition capability for voice commands.",
+        "NSBluetoothAlwaysUsageDescription": "Bravo may use Bluetooth devices for audio input/output."
+      }
+    },
+    "win": {
+      "target": ["nsis", "zip"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
+
+
