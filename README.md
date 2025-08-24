@@ -4,7 +4,7 @@
 
 # BravoAI Monorepo
 
-[![Example Demo]()](https://drive.google.com/file/d/1W_bGwIey7s2-50hPSet3GeAU_Q3SGfUr/view?usp=drive_link)
+[![Example Demo](Images/thumbnail.png)](https://drive.google.com/file/d/1W_bGwIey7s2-50hPSet3GeAU_Q3SGfUr/view?usp=drive_link)
 
 End-to-end setup to run:
 1) Coral Server (Kotlin, SSE MCP)
