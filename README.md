@@ -4,7 +4,7 @@ Bravo is an agentic autonomous browser that listens, understands, and acts so yo
 
 Click below to check the product video!
 
-[![Example Demo](Images/thumbnail.png)](https://drive.google.com/file/d/1W_bGwIey7s2-50hPSet3GeAU_Q3SGfUr/view?usp=drive_link)
+[![Example Demo](Images/thumbnail.png)](https://drive.google.com/file/d/1uqWJH76HhZJIJsF4nqiqbRG0fIkqsgxU/view?usp=sharing)
 
 
 
