@@ -31,7 +31,7 @@ uv --version    # optional but recommended
 
 ## Workflow
 
-![Workflow](assets/bravo-workflow.png)
+![Workflow](assets/BravoAI-Workflow.jpg)
 
 assets/bravo-workflow.png
 
